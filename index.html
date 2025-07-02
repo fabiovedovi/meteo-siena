@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meteo Aggregato - Siena e dintorni</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 15px;
+      background: #f5f5f5;
+    }
+    h1, h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    label {
+      font-weight: bold;
+    }
+    select {
+      margin: 10px 0 20px 10px;
+      padding: 5px;
+      font-size: 1rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    table th, table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+    table th {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit,minmax(300px,1fr));
+      gap: 20px;
+    }
+    .source {
+      background: white;
+      padding: 15px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    iframe {
+      width: 100%;
+      height: 350px;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Meteo Aggregato - Siena e dintorni</h1>
+  <label for="citySelect">Scegli la località:</label>
+  <select id="citySelect" onchange="updateCity()">
+    <option value="Siena">Siena</option>
+    <option value="Firenze">Firenze</option>
+    <option value="Roma">Roma</option>
+    <option value="Milano">Milano</option>
+    <!-- Altre località -->
+  </select>
+
+  <!-- Tabella comparativa -->
+  <table id="comparativeTable" aria-label="Tabella comparativa previsioni meteo">
+    <thead>
+      <tr>
+        <th>Fonte</th>
+        <th>Condizioni</th>
+        <th>Temperatura (°C)</th>
+        <th>Pioggia (mm)</th>
+        <th>Vento (km/h)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Righe dati dinamiche -->
+    </tbody>
+  </table>
+
+  <!-- Tabella previsioni orarie -->
+  <h2>Previsioni Orarie - Oggi</h2>
+  <table id="hourlyForecast" aria-label="Previsioni meteo orarie">
+    <thead>
+      <tr>
+        <th>Ora</th>
+        <th>Condizioni</th>
+        <th>Temperatura (°C)</th>
+        <th>Pioggia (mm)</th>
+        <th>Vento (km/h)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Righe dinamiche -->
+    </tbody>
+  </table>
+
+  <div class="grid" id="meteoGrid">
+    <!-- Iframe placeholders -->
+  </div>
+
+  <script>
+    const urls = {
+      'Siena': {
+        '3Bmeteo': 'https://www.3bmeteo.com/meteo/siena',
+        'IlMeteo.it': 'https://www.ilmeteo.it/meteo/Siena',
+        'Meteo.it': 'https://www.meteo.it/meteo/siena-091073',
+        'Lamma': 'https://www.lamma.toscana.it/meteo/siena',
+        'AccuWeather': 'https://www.accuweather.com/it/it/siena/213704/weather-forecast/213704',
+        'ARPA Toscana': 'https://www.arpat.toscana.it/temi-ambientali/meteo/previsioni-localita/siena',
+        'Aeronautica Militare': 'https://www.meteoam.it/siena',
+        'MeteoBlue': 'https://www.meteoblue.com/it/meteo/settimana/siena_italia_3166548'
+      },
+      'Firenze': {
+        '3Bmeteo': 'https://www.3bmeteo.com/meteo/firenze',
+        'IlMeteo.it': 'https://www.ilmeteo.it/meteo/Firenze',
+        'Meteo.it': 'https://www.meteo.it/meteo/firenze-082015',
+        'Lamma': 'https://www.lamma.toscana.it/meteo/firenze',
+        'AccuWeather': 'https://www.accuweather.com/it/it/firenze/215505/weather-forecast/215505',
+        'ARPA Toscana': 'https://www.arpat.toscana.it/temi-ambientali/meteo/previsioni-localita/firenze',
+        'Aeronautica Militare': 'https://www.meteoam.it/firenze',
+        'MeteoBlue': 'https://www.meteoblue.com/it/meteo/settimana/firenze_italia_3176959'
+      },
+      // Puoi aggiungere altre città qui...
+    };
+
+    const meteoData = {
+      'Siena': {
+        '3Bmeteo': { cond: 'Parzialmente nuvoloso', temp: 28, pioggia: 0, vento: 15 },
+        'IlMeteo.it': { cond: 'Soleggiato', temp: 29, pioggia: 0, vento: 10 },
+        'Meteo.it': { cond: 'Sereno', temp: 27, pioggia: 0, vento: 12 },
+        'Lamma': { cond: 'Nuvoloso', temp: 26, pioggia: 0, vento: 18 },
+        'AccuWeather': { cond: 'Parzialmente nuvoloso', temp: 28, pioggia: 0, vento: 14 },
+        'ARPA Toscana': { cond: 'Sereno', temp: 27, pioggia: 0, vento: 13 },
+        'Aeronautica Militare': { cond: 'Soleggiato', temp: 29, pioggia: 0, vento: 11 },
+        'MeteoBlue': { cond: 'Nuvoloso', temp: 26, pioggia: 0, vento: 16 }
+      },
+      'Firenze': {
+        '3Bmeteo': { cond: 'Soleggiato', temp: 30, pioggia: 0, vento: 12 },
+        'IlMeteo.it': { cond: 'Sereno', temp: 31, pioggia: 0, vento: 10 },
+        'Meteo.it': { cond: 'Parzialmente nuvoloso', temp: 29, pioggia: 0, vento: 14 },
+        'Lamma': { cond: 'Nuvoloso', temp: 28, pioggia: 0, vento: 16 },
+        'AccuWeather': { cond: 'Soleggiato', temp: 30, pioggia: 0, vento: 11 },
+        'ARPA Toscana': { cond: 'Sereno', temp: 31, pioggia: 0, vento: 13 },
+        'Aeronautica Militare': { cond: 'Parzialmente nuvoloso', temp: 29, pioggia: 0, vento: 15 },
+        'MeteoBlue': { cond: 'Nuvoloso', temp: 28, pioggia: 0, vento: 14 }
+      }
+    };
+
+    const hourlyData = {
+      'Siena': [
+        { ora: '08:00', cond: 'Sereno', temp: 22, pioggia: 0, vento: 10 },
+        { ora: '09:00', cond: 'Parzialmente nuvoloso', temp: 23, pioggia: 0, vento: 12 },
+        { ora: '10:00', cond: 'Nuvoloso', temp: 24, pioggia: 0, vento: 15 },
+        { ora: '11:00', cond: 'Nuvoloso', temp: 25, pioggia: 0, vento: 14 },
+        { ora: '12:00', cond: 'Soleggiato', temp: 27, pioggia: 0, vento: 13 },
+        { ora: '13:00', cond: 'Soleggiato', temp: 28, pioggia: 0, vento: 15 },
+        { ora: '14:00', cond: 'Parzialmente nuvoloso', temp: 28, pioggia: 0, vento: 17 },
+        { ora: '15:00', cond: 'Nuvoloso', temp: 27, pioggia: 0, vento: 18 }
+      ],
+      'Firenze': [
+        { ora: '08:00', cond: 'Sereno', temp: 24, pioggia: 0, vento: 8 },
+        { ora: '09:00', cond: 'Parzialmente nuvoloso', temp: 25, pioggia: 0, vento: 10 },
+        { ora: '10:00', cond: 'Nuvoloso', temp: 26, pioggia: 0, vento: 12 },
+        { ora: '11:00', cond: 'Soleggiato', temp: 27, pioggia: 0, vento: 11 },
+        { ora: '12:00', cond: 'Soleggiato', temp: 29, pioggia: 0, vento: 13 },
+        { ora: '13:00', cond: 'Soleggiato', temp: 30, pioggia: 0, vento: 14 },
+        { ora: '14:00', cond: 'Parzialmente nuvoloso', temp: 30, pioggia: 0, vento: 15 },
+        { ora: '15:00', cond: 'Nuvoloso', temp: 29, pioggia: 0, vento: 16 }
+      ]
+    };
+
+    function updateHourlyTable(city) {
+      const tbody = document.querySelector("#hourlyForecast tbody");
+      tbody.innerHTML = '';
+
+      if (hourlyData[city]) {
+        hourlyData[city].forEach(row => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${row.ora}</td>
+            <td>${row.cond}</td>
+            <td>${row.temp}</td>
+            <td>${row.pioggia}</td>
+            <td>${row.vento}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } else {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="5">Dati orari non disponibili per questa località.</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function updateCity() {
+      const city = document.getElementById("citySelect").value;
+      const grid = document.getElementById("meteoGrid");
+      const tableBody = document.querySelector("#comparativeTable tbody");
+
+      grid.innerHTML = '';
+      tableBody.innerHTML = '';
+
+      if (urls[city]) {
+        // Tabella comparativa
+        if (meteoData[city]) {
+          for (const [source, data] of Object.entries(meteoData[city])) {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td>${source}</td>
+              <td>${data.cond}</td>
+              <td>${data.temp}</td>
+              <td>${data.pioggia ?? data.pioggia === 0 ? data.pioggia : '-'}</td>
+              <td>${data.vento}</td>
+            `;
+            tableBody.appendChild(row);
+          }
+        } else {
+          const row = document.createElement("tr");
+          row.innerHTML = `<td colspan="5">Dati meteo non disponibili per questa località.</td>`;
+          tableBody.appendChild(row);
+        }
+
+        // Tabella oraria
+        updateHourlyTable(city);
+
+        // Iframe
+        Object.entries(urls[city]).forEach(([name, link]) => {
+          const card = document.createElement("div");
+          card.className = "source";
+          card.innerHTML = `<h3>${name}</h3><iframe src='${link}' loading='lazy' title="Previsioni meteo ${name} - ${city}"></iframe>`;
+          grid.appendChild(card);
+        });
+      } else {
+        tableBody.innerHTML = '<tr><td colspan="5">Previsioni non disponibili per questa località.</td></tr>';
+        document.querySelector("#hourlyForecast tbody").innerHTML = '<tr><td colspan="5">Previsioni orarie non disponibili.</td></tr>';
+        grid.innerHTML = '<p>Previsioni non disponibili per questa località.</p>';
+      }
+    }
+
+    updateCity();
+  </script>
+</body>
+</html>
